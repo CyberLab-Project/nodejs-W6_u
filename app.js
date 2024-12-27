@@ -29,14 +29,14 @@ const checkWinner = (board) => {
       return board[a];
     }
   }
-  return board.includes("") ? null : "draw"; // Pareggio se tutte le celle sono piene
+  return board.includes("") ? null : "draw";
 };
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://triswebapp.vercel.app", // URL del frontend in produzione
+    origin: "https://triswebapp.vercel.app",
     methods: ["GET", "POST"],
     allowedHeaders: ["Authorization"],
     credentials: true,
@@ -52,7 +52,12 @@ io.on("connection", (socket) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       socket.userId = decoded.telegramId;
       console.log(`Utente autenticato: ${socket.userId}`);
-      socket.emit("authenticated", true); // Notifica al client che l'autenticazione è riuscita
+      socket.emit("authenticated", true);
+      // Invia l'elenco delle partite disponibili
+      const openGames = Object.keys(games)
+        .filter((gameId) => !games[gameId].players.O && !games[gameId].active)
+        .map((gameId) => ({ gameId, players: games[gameId].players }));
+      socket.emit("availableGames", openGames);
     } catch (error) {
       console.error("Autenticazione fallita:", error.message);
       socket.emit("error", "Authentication failed");
@@ -76,6 +81,10 @@ io.on("connection", (socket) => {
 
     socket.join(gameId);
     socket.emit("gameCreated", { gameId, game: games[gameId] });
+    io.emit("availableGames", Object.keys(games).map((id) => ({
+      gameId: id,
+      players: games[id].players,
+    }))); // Aggiorna l'elenco delle partite disponibili per tutti i client
     console.log(`Partita creata: ${gameId}`);
   });
 
@@ -99,6 +108,10 @@ io.on("connection", (socket) => {
 
     socket.join(gameId);
     io.to(gameId).emit("gameUpdated", game);
+    io.emit("availableGames", Object.keys(games).map((id) => ({
+      gameId: id,
+      players: games[id].players,
+    }))); // Aggiorna l'elenco delle partite disponibili
     console.log(`Utente ${socket.userId} si è unito alla partita: ${gameId}`);
   });
 
