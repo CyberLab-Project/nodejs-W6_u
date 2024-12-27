@@ -22,14 +22,14 @@ const WINNING_COMBO = [
 
 const games = {}; // Stato dei giochi in memoria
 
-// Verifica il vincitore
+// Funzione per verificare il vincitore
 const checkWinner = (board) => {
   for (const [a, b, c] of WINNING_COMBO) {
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
       return board[a];
     }
   }
-  return board.includes("") ? null : "draw";
+  return board.includes("") ? null : "draw"; // Pareggio se tutte le celle sono piene
 };
 
 const app = express();
@@ -44,19 +44,22 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log("Nuovo client connesso", socket.id);
+  console.log(`Nuovo client connesso: ${socket.id}`);
 
+  // Autenticazione del client
   socket.on("authenticate", (token) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       socket.userId = decoded.telegramId;
       console.log(`Utente autenticato: ${socket.userId}`);
+      socket.emit("authenticated", true); // Notifica al client che l'autenticazione è riuscita
     } catch (error) {
-      console.error("Autenticazione fallita:", error);
+      console.error("Autenticazione fallita:", error.message);
       socket.emit("error", "Authentication failed");
     }
   });
 
+  // Creazione di una nuova partita
   socket.on("createGame", () => {
     if (!socket.userId) {
       return socket.emit("error", "Authentication required");
@@ -76,6 +79,7 @@ io.on("connection", (socket) => {
     console.log(`Partita creata: ${gameId}`);
   });
 
+  // Unione a una partita esistente
   socket.on("joinGame", (gameId) => {
     if (!socket.userId) {
       return socket.emit("error", "Authentication required");
@@ -95,9 +99,10 @@ io.on("connection", (socket) => {
 
     socket.join(gameId);
     io.to(gameId).emit("gameUpdated", game);
-    console.log(`Utente ${socket.userId} si è unito a ${gameId}`);
+    console.log(`Utente ${socket.userId} si è unito alla partita: ${gameId}`);
   });
 
+  // Effettuare una mossa
   socket.on("makeMove", ({ gameId, index }) => {
     if (!socket.userId) {
       return socket.emit("error", "Authentication required");
@@ -120,13 +125,15 @@ io.on("connection", (socket) => {
       return socket.emit("error", "Not your turn");
     }
 
+    // Aggiorna lo stato del gioco
     game.board[index] = game.currentPlayer;
     game.winner = checkWinner(game.board);
-    game.currentPlayer = game.winner ? "X" : game.currentPlayer === "X" ? "O" : "X";
+    game.currentPlayer = game.winner ? "" : game.currentPlayer === "X" ? "O" : "X";
 
     io.to(gameId).emit("gameUpdated", game);
   });
 
+  // Resetta una partita
   socket.on("resetGame", (gameId) => {
     const game = games[gameId];
     if (!game) {
@@ -142,6 +149,7 @@ io.on("connection", (socket) => {
     console.log(`Partita ${gameId} resettata`);
   });
 
+  // Disconnessione del client
   socket.on("disconnect", () => {
     console.log(`Client disconnesso: ${socket.id}`);
   });
