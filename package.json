@@ -1,14 +1,19 @@
 {
   "name": "nodejs-app",
   "version": "1.0.0",
-  "description": "A minimal Node.js web application.",
+  "description": "A minimal Node.js web application with Socket.IO.",
   "main": "app.js",
   "author": "alphasec",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.0",
+    "socket.io": "^4.6.1"
   },
   "scripts": {
     "start": "node app.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
